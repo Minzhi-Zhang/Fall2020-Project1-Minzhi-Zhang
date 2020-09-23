@@ -1,0 +1,519 @@
+---
+title: "How Did Americans Vote"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+<img src="../figs/blog_faith-and-the-presidential-election.jpg">
+
+# Introduction
+The goal of this project is to take a deeper look at the patterns and characteristics of voter behaviors from past U.S. presidential elections using the American National Election Studies (ANES) data sets. In this project I will carry out an exploratory data analysis (EDA) of survey responses from ANES and discover some interesting findings from the selected data sets. Specifically, I am interested in answering the following questions:  
+
+* What is a typical voter like?  
+* What are some patterns of behaviors that past voters might have?  
+
+The data used in this project is the Time Series Cumulative Data of ANES, which includes answers, from respondents from different election years, on selected questions that have been asked in three or more ANES’ Time Series studies. In order to gain some interesting insights of the patterns and characteristics of voter behaviors, I chose to look at some demographic characteristics of the voters such as race, gender, age, occupation etc., and I also looked at some interesting survey questions that might reveal some patterns of voter behaviors.
+
+# Question 1: What Is a Typical Voter Like?  
+
+To answer the first question, let's first explore some demographic characteristics of the voters from past U.S. presidential elections.  
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r, echo=FALSE}
+library(haven)
+# importing data
+anes_dat <- read_sav("../data/anes_timeseries_cdf.sav")
+```
+
+```{r, echo=FALSE}
+library(dplyr)
+# data preprocessing
+Election_years <- as.character(seq(1952, 2016, 4))
+anes_use <- anes_dat%>%
+              mutate(year = as_factor(VCF0004),
+                     race = as_factor(VCF0105a),
+                     gender = as_factor(VCF0104),
+                     age = as_factor(VCF0102),
+                     urbanism = as_factor(VCF0111),
+                     income = as_factor(VCF0114),
+                     education = as_factor(VCF0110),
+                     occupation = as_factor(VCF0151),
+                     work_status = as_factor(VCF0118),
+                     religion = as_factor(VCF0128),
+                     turnout = as_factor(VCF0703),
+                     vote = as_factor(VCF0706),
+                     religion_importance = as_factor(VCF0846),
+                     religion_guidance = as_factor(VCF0847),
+                     timing = as_factor(VCF0712),
+                     thermo_diff = abs(VCF0218-VCF0224)) %>%
+              select(year, race, gender, age, urbanism, income, education,
+                     occupation, work_status, religion, turnout, vote,
+                     religion_importance, religion_guidance, timing, thermo_diff) %>%
+              filter(year %in% Election_years,
+                     !is.na(turnout))
+
+# save(anes_use, file="../output/data_use.RData")
+```
+
+## Race
+```{r, fig.width=10, echo=FALSE}
+library(ggplot2)
+library(cowplot)
+# race
+anes_race <- anes_use %>%
+        filter(!is.na(race) & turnout == "3. Voted (registered)") %>%
+        group_by(year, race) %>%
+        count(turnout) %>%
+        group_by(year) %>%
+        mutate(prop = n/sum(n))
+
+anes_race %>%
+  ggplot(aes(x = year, y = prop, fill = race)) +
+  geom_bar(stat = "identity", colour = "black") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_fill_brewer(palette = "Blues") +
+  labs(title = "How did different racial groups participated in the election \n over the years?") +
+  ylab("Proportion")
+
+ggsave(filename = "anes_race_1.png", path = "../figs", device = "png")
+
+anes_race %>%
+  ggplot(aes(x = year, y = n, group = race, color = race)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+# ggsave(filename = "anes_race_2.png", path = "../figs", device = "png")
+```
+
+From the above two graphs, it's clear that White non-Hispanic racial group is more likely to vote than any other racial groups. The second most likely racial group is Black non-Hispanic. I also notice that the proportion of Hispanic voters are gradually increasing over the past few elections.
+
+## Gender
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# gender
+anes_gender <- anes_use %>%
+                  filter(!is.na(gender) & turnout == "3. Voted (registered)") %>%
+                  group_by(year, gender) %>%
+                  count(turnout) %>%
+                  group_by(year) %>%
+                  mutate(prop = n/sum(n))
+
+p1 <- anes_gender %>%
+  ggplot(aes(x = year, y = prop, fill = gender)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  labs(title = "Who is More Likely to Vote? Men or Women?") +
+  ylab("Proportion")
+
+p2 <- anes_gender %>%
+  ggplot(aes(x = year, y = n, group = gender, color = gender)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_gender.png", path = "../figs", device = "png")
+```
+
+As for the gender, we can see that in every presidential election since 1952, the proportion of women who voted has exceeded the proportion of men who voted. This is somehow surprising to me, because by intuition, I thought men had more power on political issues, so I assumed that men were more likely to vote. But it turned out that's not true. 
+
+Therefore, I did some research on why women are more likely to vote, and found some interesting findings. First of all, there’s no consensus, but political scientists have a few possible theories. 
+
+The first possibility is that women deal with government in their daily lives more than men do. Women are more dependent on safety-net services such as food stamps and child-care subsidies than men are. In addition, women are more likely than men to be primary caregivers, which means they spend more time with health-care providers and other people who are employed by the government. This additional exposure to government could potentially have a positive impact on women when it comes to voting.
+
+The second possibility is that because women in America only have had the right to vote for less than a century, so they don't take it for granted and exercise it in much greater numbers and greater percentages than men. 
+
+
+## Age Group
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# age group
+anes_age <- anes_use %>%
+              filter(!is.na(age) & turnout == "3. Voted (registered)") %>%
+              group_by(year, age) %>%
+              count(turnout) %>%
+              group_by(year) %>%
+              mutate(prop = n/sum(n))
+
+p1 <- anes_age %>%
+  ggplot(aes(x = year, y = prop, fill = age)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_age %>%
+  ggplot(aes(x = year, y = n, group = age, color = age)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_age.png", path = "../figs", device = "png")
+```
+
+Before 2004, the majority of the voters were among 25 to 44; after 2004, the majority of the voters were among 45 to 64. 
+
+## Urbanism
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# urbanism
+anes_urbanism <- anes_use %>%
+                    filter(!is.na(urbanism) & turnout == "3. Voted (registered)") %>%
+                    group_by(year, urbanism) %>%
+                    count(turnout) %>%
+                    group_by(year) %>%
+                    mutate(prop = n/sum(n))
+
+p1 <- anes_urbanism %>%
+  ggplot(aes(x = year, y = prop, fill = urbanism)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_urbanism %>%
+  ggplot(aes(x = year, y = n, group = urbanism, color = urbanism)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_urbanism.png", path = "../figs", device = "png")
+```
+
+Now let’s take a look at where the voters resided in. To my suprise, people who lived in central cities didn’t seem to like to participate in the presidential elections, while people who lived in suburban areas or rural areas were more likely to vote.
+
+
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# # income
+# anes_income <- anes_use %>%
+#                     filter(!is.na(income) & turnout == "3. Voted (registered)") %>%
+#                     group_by(year, income) %>%
+#                     count(turnout) %>%
+#                     group_by(year) %>%
+#                     mutate(prop = n/sum(n))
+# 
+# p1 <- anes_income %>%
+#   ggplot(aes(x = year, y = prop, fill = income)) +
+#   geom_bar(stat = "identity", colour = "black") + 
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90))+
+#   scale_fill_brewer(palette="Blues")+
+#   ylab("Proportion")
+# 
+# p2 <- anes_income %>%
+#   ggplot(aes(x = year, y = n, group = income, color = income)) +
+#   geom_line() +
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   ylab("Number of Voters")
+# 
+# plot_grid(p1, p2)
+```
+
+## Education
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# education
+anes_edu <- anes_use %>%
+        filter(!is.na(education) & turnout == "3. Voted (registered)") %>%
+        group_by(year, education) %>%
+        count(turnout) %>%
+        group_by(year) %>%
+        mutate(prop = n/sum(n))
+
+p1 <- anes_edu %>%
+  ggplot(aes(x = year, y = prop, fill = education)) +
+  geom_bar(stat = "identity", colour = "black") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_fill_brewer(palette = "Blues") +
+  ylab("Proportion")
+
+p2 <- anes_edu %>%
+  ggplot(aes(x = year, y = n, group = education, color = education)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_edu.png", path = "../figs", device = "png")
+```
+
+As for the education level, the proportion of voters with higher education levels has increased over time, this may be due to more people pursuing higher education nowadays. It seems like people with only high school education were also actively participating in the presidential elections.
+
+## Occupation
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# occupation
+anes_occupation <- anes_use %>%
+                    filter(!is.na(occupation) & turnout == "3. Voted (registered)") %>%
+                    group_by(year, occupation) %>%
+                    count(turnout) %>%
+                    group_by(year) %>%
+                    mutate(prop = n/sum(n))
+
+p1 <- anes_occupation %>%
+  ggplot(aes(x = year, y = prop, fill = occupation)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_occupation %>%
+  ggplot(aes(x = year, y = n, group = occupation, color = occupation)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_occupation.png", path = "../figs", device = "png")
+```
+
+Over the past presidential elections, the proportion of homemakers has drastically decreased, whereas the proportion of professional and managerial has remarkably increased. The proportion of skilled, semi-skilled and service workers has remained approximately the same over time.
+
+```{r, echo=FALSE}
+# # work_status
+# anes_work_status <- anes_use %>%
+#                     filter(!is.na(work_status) & turnout == "3. Voted (registered)") %>%
+#                     group_by(year, work_status) %>%
+#                     count(turnout) %>%
+#                     group_by(year) %>%
+#                     mutate(prop = n/sum(n))
+# 
+# anes_work_status %>%
+#   ggplot(aes(x = year, y = prop, fill = work_status)) +
+#   geom_bar(stat = "identity", colour = "black") + 
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90))+
+#   scale_fill_brewer(palette="Blues")+
+#   labs(title = "Work Status") +
+#   ylab("Proportion")
+# 
+# anes_work_status %>%
+#   ggplot(aes(x = year, y = n, group = work_status, color = work_status)) +
+#   geom_line() +
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   ylab("Number of Voters")
+```
+
+
+## Religion
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# religion
+anes_religion <- anes_use %>%
+                    filter(!is.na(religion) & turnout == "3. Voted (registered)") %>%
+                    group_by(year, religion) %>%
+                    count(turnout) %>%
+                    group_by(year) %>%
+                    mutate(prop = n/sum(n))
+
+p1 <- anes_religion %>%
+  ggplot(aes(x = year, y = prop, fill = religion)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_religion %>%
+  ggplot(aes(x = year, y = n, group = religion, color = religion)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_religion.png", path = "../figs", device = "png")
+```
+
+Even though the proportion of protestants has decreased over time, they still accounted for a large segment of the voters, and the proportion of other religion and non-religious has drastically increased.
+
+
+# Question 2: What Are Some Patterns of Behaviors that Past Voters Might Have?
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# # religion importance
+# anes_religion_imp <- anes_use %>%
+#                     filter(!is.na(religion_importance) & 
+#                            turnout == "3. Voted (registered)") %>%
+#                     group_by(year, religion_importance) %>%
+#                     count(turnout) %>%
+#                     group_by(year) %>%
+#                     mutate(prop = n/sum(n))
+# 
+# p1 <- anes_religion_imp %>%
+#   ggplot(aes(x = year, y = prop, fill = religion_importance)) +
+#   geom_bar(stat = "identity", colour = "black") + 
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   scale_fill_brewer(palette="Blues") +
+#   ylab("Proportion")
+# 
+# p2 <- anes_religion_imp %>%
+#   ggplot(aes(x = year, y = n, group = religion_importance, color = religion_importance)) +
+#   geom_line() +
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   ylab("Number of Voters")
+# 
+# plot_grid(p1, p2)
+# 
+# # religion guidance
+# anes_religion_guid <- anes_use %>%
+#                     filter(!is.na(religion_guidance) & 
+#                            turnout == "3. Voted (registered)") %>%
+#                     group_by(year, religion_guidance) %>%
+#                     count(turnout) %>%
+#                     group_by(year) %>%
+#                     mutate(prop = n/sum(n))
+# 
+# p1 <- anes_religion_guid %>%
+#   ggplot(aes(x = year, y = prop, fill = religion_guidance)) +
+#   geom_bar(stat = "identity", colour = "black") + 
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90))+
+#   scale_fill_brewer(palette="Blues")+
+#   ylab("Proportion")
+# 
+# p2 <- anes_religion_guid %>%
+#   ggplot(aes(x = year, y = n, group = religion_guidance, color = religion_guidance)) +
+#   geom_line() +
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   ylab("Number of Voters")
+# 
+# plot_grid(p1, p2)
+```
+
+
+In order to answer this question, I looked at the timing and thermometer variables in the data set. The timing variable reports when did the voters know who to vote for, and the thermometer reports how they felt towards different parties, i.e. Democrats and Republican.
+
+Let's first check out when the voters know who to vote for.
+
+## When Did the Voters Know Who to Vote for?
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+#timing
+anes_timing <- anes_use %>%
+                    filter(!is.na(timing) & turnout == "3. Voted (registered)") %>%
+                    group_by(year, timing) %>%
+                    count(turnout) %>%
+                    group_by(year) %>%
+                    mutate(prop = n/sum(n))
+
+p1 <- anes_timing %>%
+  ggplot(aes(x = year, y = prop, fill = timing)) +
+  geom_bar(stat = "identity", colour = "black") +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_timing %>%
+  ggplot(aes(x = year, y = n, group = timing, color = timing)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_timing.png", path = "../figs", device = "png")
+```
+
+It's interesting to see that voters from different years had different voting behaviors. They didn't always know who they were going to vote for all along. Most people knew who to vote for at least two weeks before the campaign. 
+
+## Feelings Towards Different Parties  
+I also wanted to see the voters' feelings towards different parties. I calculated the absolute difference between the thermometer of Democrats Party and Republican Party, and then mapped them into different categories. i.e. 1-10 is very indifferent, 11-50 is somehow indifferent, 51-90 is favor one party over another, 91-100 is strongly favor one party over another. 
+```{r, fig.width=20, fig.height=10, echo=FALSE}
+# map thermometer score to different categories
+mapping <- function(x) {
+  if(x <= 10) {
+    return("1. Very Indifferent")
+  }else if(x > 10 & x <= 50){
+    return("2. Somehow indifferent")
+  }else if(x > 50 & x <= 90){
+    return("3. Favor one party over another ")
+  }else{
+    return("4. Strongly favor one party over another")
+  }
+}
+
+feeling <- sapply(na.omit(anes_use$thermo_diff), mapping)
+
+anes_thermo_diff <- anes_use %>%
+                      filter(!is.na(thermo_diff))
+
+anes_thermo_diff$feeling <- as_factor(feeling)
+
+anes_thermo_diff <- anes_thermo_diff %>%
+                      filter(turnout == "3. Voted (registered)") %>%
+                      group_by(year, feeling) %>%
+                      count(turnout) %>%
+                      group_by(year) %>%
+                      mutate(prop = n/sum(n))
+
+
+p1 <- anes_thermo_diff %>%
+  ggplot(aes(x = year, y = prop, fill = feeling)) +
+  geom_bar(stat = "identity", colour = "black") + 
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))+
+  scale_fill_brewer(palette="Blues")+
+  ylab("Proportion")
+
+p2 <- anes_thermo_diff %>%
+  ggplot(aes(x = year, y = n, group = feeling, color = feeling)) +
+  geom_line() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab("Number of Voters")
+
+plot_grid(p1, p2)
+# ggsave(filename = "anes_thermo_diff.png", path = "../figs", device = "png")
+```
+
+As we can see from the above graph, most voters fell into the second category, i.e. they were somehow indifferent towards the two parties. Only a small portion of the voters had strong feelings towards one party over another.
+
+
+# Conclusion
+## Typical Voter
+Based on the above exploratory data analysis, a typical voter has the following demographic characteristics:  
+  
+* White non-Hispanic;  
+* woman; 
+* aged between 45 and 64;  
+* lives in suburban areas;  
+* at least goes to some college, may or may not have degree;  
+* professional or management jobs;  
+* protestant;  
+
+## Patterns of Voter Behaviors
+* Most people knew who to vote for at least two weeks before the campaign;  
+* The majority of the voters were somehow indifferent towards the two parties, i.e. their feelings towards Democrats and Republican didn't differ much;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
