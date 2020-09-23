@@ -29,7 +29,8 @@ at least goes to some college, may or may not have degree;
 professional or management jobs;
 protestant;
 
-+ Patterns of Voter Behaviors
++ Patterns of Voter Behaviors:
+
 Most people knew who to vote for at least two weeks before the campaign;
 The majority of the voters were somehow indifferent towards the two parties, i.e. their feelings towards Democrats and Republican didn’t differ much;
 
